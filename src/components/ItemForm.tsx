@@ -1,3 +1,4 @@
+
 // src/components/ItemForm.tsx
 'use client';
 
@@ -44,11 +45,10 @@ export function ItemForm() {
   const router = useRouter();
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   
-  // Image upload state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null); // For preview
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [imagePathInStorage, setImagePathInStorage] = useState<string | null>(null);
 
@@ -59,14 +59,13 @@ export function ItemForm() {
       name: '',
       description: '',
       category: undefined,
-      imageUrl: '',
+      imageUrl: '', // This is the value that will be submitted with the form
       locationFound: '',
       contactEmailToClaim: '',
     },
   });
 
   useEffect(() => {
-    // Clean up Firebase storage if component unmounts or image is changed before submitting
     return () => {
       if (imagePathInStorage && !form.formState.isSubmitSuccessful) {
         const imageRef = ref(storage, imagePathInStorage);
@@ -93,7 +92,6 @@ export function ItemForm() {
         return;
       }
       
-      // If there was a previously uploaded image for this form session, delete it
       if (imagePathInStorage) {
         const oldImageRef = ref(storage, imagePathInStorage);
         deleteObject(oldImageRef).catch(error => console.warn("Failed to delete old image:", imagePathInStorage, error));
@@ -101,8 +99,8 @@ export function ItemForm() {
       }
 
       setImageFile(file);
-      setUploadedImageUrl(null); // Clear previous preview
-      form.setValue('imageUrl', ''); // Clear previous URL
+      setUploadedImageUrl(null); 
+      form.setValue('imageUrl', ''); // Clear form's imageUrl in preparation for new upload
       setUploadError(null);
       handleImageUpload(file);
     }
@@ -111,6 +109,7 @@ export function ItemForm() {
   const handleImageUpload = (file: File) => {
     setIsUploadingImage(true);
     setUploadProgress(0);
+    setUploadError(null); // Clear previous errors
     
     const filePath = `items/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, filePath);
@@ -122,27 +121,37 @@ export function ItemForm() {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadProgress(progress);
       },
-      (error) => {
+      (error) => { // Error during upload task itself
         console.error("Upload failed:", error);
         setUploadError(`Upload failed: ${error.message}`);
         setIsUploadingImage(false);
         setUploadProgress(null);
         setImageFile(null);
+        form.setValue('imageUrl', '', { shouldValidate: true }); // Ensure form imageUrl is empty
+        setUploadedImageUrl(null); // Clear preview
         setImagePathInStorage(null);
       },
-      async () => {
+      async () => { // Upload task completed
         try {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploadedImageUrl(downloadURL);
-          form.setValue('imageUrl', downloadURL, { shouldValidate: true });
-          setImagePathInStorage(filePath); // Store path for potential cleanup
-        } catch (error) {
+          setUploadedImageUrl(downloadURL); // For preview
+          form.setValue('imageUrl', downloadURL, { shouldValidate: true }); // Set form's imageUrl
+          setImagePathInStorage(filePath); 
+          setUploadError(null); // Clear any previous errors
+          setUploadProgress(100); // Visually indicate completion
+        } catch (error) { // Error getting download URL
             console.error("Failed to get download URL:", error);
             setUploadError('Failed to get image URL after upload.');
-            setImagePathInStorage(null); // Clear path as upload effectively failed
+            form.setValue('imageUrl', '', { shouldValidate: true }); // Ensure form imageUrl is empty
+            setUploadedImageUrl(null); // Clear preview
+            setImagePathInStorage(filePath); // Keep path for potential cleanup as upload did happen
+                                           // but we might want to delete it if form submission fails due to no URL
         } finally {
             setIsUploadingImage(false);
-            setUploadProgress(100); // Visually indicate completion
+            // Only keep progress at 100 if successful, otherwise clear it or show error
+            if (uploadError) {
+                setUploadProgress(null);
+            }
         }
       }
     );
@@ -157,8 +166,12 @@ export function ItemForm() {
       });
       return;
     }
+
+    // Ensure imageUrl in values is the one from Firebase, or empty string if upload failed/not attempted
+    const submissionValues = { ...values, imageUrl: form.getValues('imageUrl') || '' };
+
     setIsSubmittingForm(true);
-    const result = await postFoundItemAction(values as ItemFormData);
+    const result = await postFoundItemAction(submissionValues as ItemFormData);
     setIsSubmittingForm(false);
 
     if (result.success && result.item) {
@@ -172,7 +185,7 @@ export function ItemForm() {
       setUploadedImageUrl(null);
       setUploadProgress(null);
       setUploadError(null);
-      setImagePathInStorage(null); // Clear path after successful submission
+      setImagePathInStorage(null); 
     } else {
       toast({
         title: "Error",
@@ -255,7 +268,6 @@ export function ItemForm() {
           )}
         />
         
-        {/* Image Upload Field */}
         <FormItem>
           <FormLabel>Photo Upload (Optional)</FormLabel>
           <FormControl>
@@ -264,13 +276,13 @@ export function ItemForm() {
               accept="image/jpeg, image/png"
               onChange={handleImageChange}
               className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              disabled={isUploadingImage}
+              disabled={isUploadingImage || isSubmittingForm}
             />
           </FormControl>
           <FormDescription>
             Upload a JPG or PNG image (max 5MB).
           </FormDescription>
-          {isUploadingImage && uploadProgress !== null && (
+          {isUploadingImage && uploadProgress !== null && uploadProgress < 100 && (
             <div className="mt-2 space-y-1">
               <Progress value={uploadProgress} className="w-full h-2" />
               <p className="text-sm text-muted-foreground">{`Uploading: ${Math.round(uploadProgress)}%`}</p>
@@ -281,7 +293,7 @@ export function ItemForm() {
               <AlertCircle className="w-4 h-4 mr-1" /> {uploadError}
             </p>
           )}
-          {uploadedImageUrl && !isUploadingImage && !uploadError && (
+          {uploadedImageUrl && !isUploadingImage && !uploadError && uploadProgress === 100 && (
             <div className="mt-4">
               <p className="text-sm text-green-600 flex items-center mb-2">
                 <CheckCircle className="w-4 h-4 mr-1" /> Image uploaded successfully.
@@ -349,3 +361,4 @@ export function ItemForm() {
     </Form>
   );
 }
+
