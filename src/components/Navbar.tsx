@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
+import { useId } from 'react';
 
 export function Navbar() {
   const navItems = [
@@ -10,6 +11,8 @@ export function Navbar() {
     { href: '/search-items', label: 'Search Items' },
     { href: '/post-item', label: 'Post Found Item' },
   ];
+
+  const mobileNavTitleId = useId();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,8 +38,8 @@ export function Navbar() {
                 <span className="sr-only">Open menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right">
-              <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
+            <SheetContent side="right" aria-labelledby={mobileNavTitleId}>
+              <SheetTitle id={mobileNavTitleId} className="sr-only">Mobile Navigation Menu</SheetTitle>
               <nav className="flex flex-col gap-4 mt-8">
                 {navItems.map((item) => (
                   <Button key={item.label} variant="ghost" asChild className="w-full justify-start text-lg py-3">
