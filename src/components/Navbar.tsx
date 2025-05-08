@@ -40,7 +40,7 @@ export function Navbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" aria-labelledby={mobileNavTitleId}>
-              <VisuallyHidden>
+              <VisuallyHidden asChild>
                 <SheetTitle id={mobileNavTitleId}>Mobile Navigation Menu</SheetTitle>
               </VisuallyHidden>
               <nav className="flex flex-col gap-4 mt-8">
@@ -57,3 +57,4 @@ export function Navbar() {
     </header>
   );
 }
+
