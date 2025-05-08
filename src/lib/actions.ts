@@ -25,6 +25,7 @@ export async function postFoundItemAction(data: ItemFormData) {
     
     revalidatePath('/search-items'); // Revalidate search page to show new item
     revalidatePath('/'); // Revalidate home page if it shows recent items
+    revalidatePath(`/items/${newItem.id}`); // Revalidate the specific new item's page
     
     return { success: true, message: 'Item posted successfully!', item: newItem };
   } catch (error) {

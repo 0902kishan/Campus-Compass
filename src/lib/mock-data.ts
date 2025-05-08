@@ -70,7 +70,7 @@ export async function addItem(itemData: Omit<Item, 'id' | 'dateFound'>): Promise
   await new Promise(resolve => setTimeout(resolve, 500));
   const newItem: Item = {
     ...itemData,
-    id: String(mockItems.length + 1 + Math.random()), // Ensure unique ID for mock
+    id: `item-${Date.now()}-${mockItems.length + 1}`, // More robust and URL-friendly ID
     dateFound: new Date().toISOString(),
   };
   mockItems.unshift(newItem); // Add to the beginning of the array
