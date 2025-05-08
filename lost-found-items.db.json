@@ -1,0 +1,51 @@
+[
+  {
+    "id": "1",
+    "name": "iPhone 13 Pro",
+    "description": "Found an iPhone 13 Pro near the library entrance. Sierra Blue color, in a clear case. Screen has a small crack in the top right.",
+    "category": "Electronics",
+    "imageUrl": "https://picsum.photos/seed/iphone13/400/300",
+    "locationFound": "Library Entrance",
+    "dateFound": "2025-05-06T12:47:32.072Z",
+    "contactEmailToClaim": "finder1@example.com"
+  },
+  {
+    "id": "2",
+    "name": "Red Scarf",
+    "description": "A knitted red scarf, looks handmade. Found on a bench in the main quad.",
+    "category": "Clothing",
+    "imageUrl": "https://picsum.photos/seed/redscarf/400/300",
+    "locationFound": "Main Quad Bench",
+    "dateFound": "2025-05-07T12:47:32.072Z",
+    "contactEmailToClaim": "finder2@example.com"
+  },
+  {
+    "id": "3",
+    "name": "Calculus Textbook",
+    "description": "\"Advanced Calculus, 5th Edition\". Has some highlighting on chapter 3. Found in lecture hall C.",
+    "category": "Books",
+    "locationFound": "Lecture Hall C",
+    "dateFound": "2025-05-03T12:47:32.072Z",
+    "contactEmailToClaim": "finder3@example.com"
+  },
+  {
+    "id": "4",
+    "name": "Set of Keys",
+    "description": "Bunch of keys on a silver carabiner. Includes a small \"Star Wars\" keychain.",
+    "category": "Keys",
+    "imageUrl": "https://picsum.photos/seed/keys/400/300",
+    "locationFound": "Cafeteria Table 5",
+    "dateFound": "2025-05-08T12:47:32.072Z",
+    "contactEmailToClaim": "finder4@example.com"
+  },
+  {
+    "id": "5",
+    "name": "Brown Leather Wallet",
+    "description": "Men's brown leather wallet. Contains student ID for \"Alex Chen\". Please verify other contents to claim.",
+    "category": "Wallet",
+    "imageUrl": "https://picsum.photos/seed/wallet/400/300",
+    "locationFound": "Student Union Games Room",
+    "dateFound": "2025-05-05T12:47:32.072Z",
+    "contactEmailToClaim": "finder5@example.com"
+  }
+]

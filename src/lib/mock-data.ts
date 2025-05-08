@@ -1,6 +1,9 @@
-import type { Item, ItemCategory } from '@/types';
+import type { Item, ItemCategory, ItemFormData } from '@/types';
+import fs from 'fs';
+import path from 'path';
 
-export const mockItems: Item[] = [
+// These are the initial items if the DB file doesn't exist or is invalid.
+const initialMockItems: Item[] = [
   {
     id: '1',
     name: 'iPhone 13 Pro',
@@ -53,26 +56,86 @@ export const mockItems: Item[] = [
   },
 ];
 
-// In a real app, these would be server functions
+const DB_FILE_NAME = 'lost-found-items.db.json';
+// Place DB in a writable directory; for local dev, project root or /tmp.
+// Using project root here for simplicity in dev. For serverless, /tmp is better.
+const DB_PATH = path.join(process.cwd(), DB_FILE_NAME);
+
+function readDb(): Item[] {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const fileContent = fs.readFileSync(DB_PATH, 'utf-8');
+      // Ensure dates are properly handled if stored as strings
+      const items: Item[] = JSON.parse(fileContent);
+      return items.map(item => ({
+        ...item,
+        dateFound: new Date(item.dateFound).toISOString(), // Ensure date is ISO string
+      }));
+    } else {
+      // Initialize DB file with initial items
+      fs.writeFileSync(DB_PATH, JSON.stringify(initialMockItems, null, 2), 'utf-8');
+      return [...initialMockItems]; // Return a copy
+    }
+  } catch (error) {
+    console.error("Error reading or initializing DB file:", error);
+    // Fallback to in-memory initial items if file system fails critically
+    // And attempt to re-initialize the file to prevent repeated errors on next ops.
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(initialMockItems, null, 2), 'utf-8');
+    } catch (initError) {
+        console.error("Failed to re-initialize DB file:", initError);
+    }
+    return [...initialMockItems]; 
+  }
+}
+
+function writeDb(items: Item[]): void {
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(items, null, 2), 'utf-8');
+  } catch (error) {
+    console.error("Error writing to DB file:", error);
+    // Depending on requirements, you might want to throw this error
+    // or have a more sophisticated error handling/retry mechanism.
+  }
+}
+
 export async function getItems(): Promise<Item[]> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return mockItems.sort((a, b) => new Date(b.dateFound).getTime() - new Date(a.dateFound).getTime());
+  const items = readDb();
+  return items.sort((a, b) => new Date(b.dateFound).getTime() - new Date(a.dateFound).getTime());
 }
 
 export async function getItemById(id: string): Promise<Item | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockItems.find(item => item.id === id);
+  const items = readDb();
+  return items.find(item => item.id === id);
 }
 
-// Simulate adding an item
 export async function addItem(itemData: Omit<Item, 'id' | 'dateFound'>): Promise<Item> {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const items = readDb();
   const newItem: Item = {
     ...itemData,
-    id: `item-${Date.now()}-${mockItems.length + 1}`, // More robust and URL-friendly ID
+    id: `item-${Date.now()}-${items.length + 1}`, // Generate a unique ID
     dateFound: new Date().toISOString(),
   };
-  mockItems.unshift(newItem); // Add to the beginning of the array
+  // Add to the beginning of the array to show newest items first if not re-sorted elsewhere
+  const updatedItems = [newItem, ...items]; 
+  writeDb(updatedItems);
   return newItem;
 }
+
+// Optional: A utility function to reset the database during development
+// You could expose this via a secret debug route or CLI command if needed.
+export async function resetDbToInitialState(): Promise<void> {
+  console.log(`Resetting database at ${DB_PATH} to initial state.`);
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(initialMockItems, null, 2), 'utf-8');
+    console.log('Database reset successfully.');
+  } catch (error) {
+    console.error('Failed to reset database:', error);
+  }
+}
+// To use resetDbToInitialState, you might call it during app startup in dev mode,
+// or through a specific mechanism. For now, it's just defined.
+// Example: if (process.env.NODE_ENV === 'development') { resetDbToInitialState(); } (conditionally)
+
+// Note: You should add DB_FILE_NAME (e.g., "lost-found-items.db.json") to your .gitignore file
+// to prevent committing the mock database to your repository.
