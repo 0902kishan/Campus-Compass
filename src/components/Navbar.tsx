@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 
 export function Navbar() {
@@ -36,6 +36,7 @@ export function Navbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
+              <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
               <nav className="flex flex-col gap-4 mt-8">
                 {navItems.map((item) => (
                   <Button key={item.label} variant="ghost" asChild className="w-full justify-start text-lg py-3">
@@ -50,3 +51,4 @@ export function Navbar() {
     </header>
   );
 }
+
