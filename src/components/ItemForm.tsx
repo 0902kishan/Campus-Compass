@@ -1,3 +1,4 @@
+// src/components/ItemForm.tsx
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,11 +18,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { postFoundItemAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, UploadCloud, CheckCircle, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import { storage } from '@/lib/firebase'; // Firebase storage instance
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const itemCategories: ItemCategory[] = ["Electronics", "Clothing", "Books", "Keys", "Wallet", "Other"];
 
@@ -37,7 +42,16 @@ const ItemFormSchema = z.object({
 export function ItemForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imagePathInStorage, setImagePathInStorage] = useState<string | null>(null);
+
 
   const form = useForm<z.infer<typeof ItemFormSchema>>({
     resolver: zodResolver(ItemFormSchema),
@@ -51,25 +65,120 @@ export function ItemForm() {
     },
   });
 
+  useEffect(() => {
+    // Clean up Firebase storage if component unmounts or image is changed before submitting
+    return () => {
+      if (imagePathInStorage && !form.formState.isSubmitSuccessful) {
+        const imageRef = ref(storage, imagePathInStorage);
+        deleteObject(imageRef).catch(error => console.warn("Cleanup failed for image:", imagePathInStorage, error));
+      }
+    };
+  }, [imagePathInStorage, form.formState.isSubmitSuccessful]);
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        setUploadError('Invalid file type. Please upload a JPG or PNG image.');
+        setImageFile(null);
+        setUploadedImageUrl(null);
+        form.setValue('imageUrl', '');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setUploadError('File is too large. Maximum size is 5MB.');
+        setImageFile(null);
+        setUploadedImageUrl(null);
+        form.setValue('imageUrl', '');
+        return;
+      }
+      
+      // If there was a previously uploaded image for this form session, delete it
+      if (imagePathInStorage) {
+        const oldImageRef = ref(storage, imagePathInStorage);
+        deleteObject(oldImageRef).catch(error => console.warn("Failed to delete old image:", imagePathInStorage, error));
+        setImagePathInStorage(null);
+      }
+
+      setImageFile(file);
+      setUploadedImageUrl(null); // Clear previous preview
+      form.setValue('imageUrl', ''); // Clear previous URL
+      setUploadError(null);
+      handleImageUpload(file);
+    }
+  };
+
+  const handleImageUpload = (file: File) => {
+    setIsUploadingImage(true);
+    setUploadProgress(0);
+    
+    const filePath = `items/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        setUploadError(`Upload failed: ${error.message}`);
+        setIsUploadingImage(false);
+        setUploadProgress(null);
+        setImageFile(null);
+        setImagePathInStorage(null);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          setUploadedImageUrl(downloadURL);
+          form.setValue('imageUrl', downloadURL, { shouldValidate: true });
+          setImagePathInStorage(filePath); // Store path for potential cleanup
+        } catch (error) {
+            console.error("Failed to get download URL:", error);
+            setUploadError('Failed to get image URL after upload.');
+            setImagePathInStorage(null); // Clear path as upload effectively failed
+        } finally {
+            setIsUploadingImage(false);
+            setUploadProgress(100); // Visually indicate completion
+        }
+      }
+    );
+  };
+
   async function onSubmit(values: z.infer<typeof ItemFormSchema>) {
-    setIsSubmitting(true);
+    if (isUploadingImage) {
+      toast({
+        title: "Please wait",
+        description: "Image is still uploading.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSubmittingForm(true);
     const result = await postFoundItemAction(values as ItemFormData);
-    setIsSubmitting(false);
+    setIsSubmittingForm(false);
 
     if (result.success && result.item) {
       toast({
         title: "Success!",
         description: result.message,
       });
-      router.push(`/items/${result.item.id}`); // Navigate to the newly created item's page
+      router.push(`/items/${result.item.id}`); 
       form.reset();
+      setImageFile(null);
+      setUploadedImageUrl(null);
+      setUploadProgress(null);
+      setUploadError(null);
+      setImagePathInStorage(null); // Clear path after successful submission
     } else {
       toast({
         title: "Error",
         description: result.message || "Failed to post item. Please try again.",
         variant: "destructive",
       });
-      // Handle field-specific errors if your action returns them
       if (result.errors) {
         Object.entries(result.errors).forEach(([field, messages]) => {
           form.setError(field as keyof ItemFormData, {
@@ -80,6 +189,8 @@ export function ItemForm() {
       }
     }
   }
+
+  const isSubmitDisabled = isUploadingImage || isSubmittingForm;
 
   return (
     <Form {...form}>
@@ -143,22 +254,52 @@ export function ItemForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="https://example.com/image.jpg" {...field} />
-              </FormControl>
-              <FormDescription>
-                If you have an image of the item, paste the URL here.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+        
+        {/* Image Upload Field */}
+        <FormItem>
+          <FormLabel>Photo Upload (Optional)</FormLabel>
+          <FormControl>
+            <Input 
+              type="file" 
+              accept="image/jpeg, image/png"
+              onChange={handleImageChange}
+              className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              disabled={isUploadingImage}
+            />
+          </FormControl>
+          <FormDescription>
+            Upload a JPG or PNG image (max 5MB).
+          </FormDescription>
+          {isUploadingImage && uploadProgress !== null && (
+            <div className="mt-2 space-y-1">
+              <Progress value={uploadProgress} className="w-full h-2" />
+              <p className="text-sm text-muted-foreground">{`Uploading: ${Math.round(uploadProgress)}%`}</p>
+            </div>
           )}
-        />
+          {uploadError && (
+            <p className="mt-2 text-sm text-destructive flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" /> {uploadError}
+            </p>
+          )}
+          {uploadedImageUrl && !isUploadingImage && !uploadError && (
+            <div className="mt-4">
+              <p className="text-sm text-green-600 flex items-center mb-2">
+                <CheckCircle className="w-4 h-4 mr-1" /> Image uploaded successfully.
+              </p>
+              <div className="relative w-full max-w-xs h-48 rounded-md overflow-hidden border">
+                <Image src={uploadedImageUrl} alt="Uploaded preview" fill style={{objectFit:"cover"}} />
+              </div>
+            </div>
+          )}
+          {/* Hidden field to store imageUrl for react-hook-form, value set by upload logic */}
+          <FormField
+            control={form.control}
+            name="imageUrl"
+            render={({ field }) => <Input type="hidden" {...field} />}
+          />
+           <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+        </FormItem>
+
         <FormField
           control={form.control}
           name="locationFound"
@@ -189,11 +330,16 @@ export function ItemForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-          {isSubmitting ? (
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitDisabled}>
+          {isSubmittingForm ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Submitting...
+            </>
+          ) : isUploadingImage ? (
+             <>
+              <UploadCloud className="mr-2 h-4 w-4 animate-pulse" />
+              Uploading Image...
             </>
           ) : (
             'Post Found Item'

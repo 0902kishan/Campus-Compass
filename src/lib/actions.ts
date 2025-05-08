@@ -1,17 +1,21 @@
+// src/lib/actions.ts
 'use server';
 
 import { z } from 'zod';
-import { addItem, getItemById } from '@/lib/mock-data'; // Assuming addItem is in mock-data for now
-import type { ItemFormData, ContactFormData, ItemCategory } from '@/types';
+import { addItem } from '@/lib/mock-data'; 
+import type { ItemFormData, ItemCategory, ContactFormData } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 const itemCategories: [ItemCategory, ...ItemCategory[]] = ["Electronics", "Clothing", "Books", "Keys", "Wallet", "Other"];
 
+// Schema for validating form data when posting an item
 const ItemFormSchema = z.object({
   name: z.string().min(3, { message: "Name must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   category: z.enum(itemCategories, { message: "Invalid category." }),
-  imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  // imageUrl is optional, but if provided, it must be a valid URL.
+  // This will be populated by the Firebase Storage URL after successful upload.
+  imageUrl: z.string().url({ message: "Invalid image URL." }).optional().or(z.literal('')),
   locationFound: z.string().min(3, { message: "Location must be at least 3 characters." }),
   contactEmailToClaim: z.string().email({ message: "Please enter a valid email address." }),
 });
@@ -20,12 +24,11 @@ export async function postFoundItemAction(data: ItemFormData) {
   try {
     const validatedData = ItemFormSchema.parse(data);
     
-    // In a real app, save to database here
     const newItem = await addItem(validatedData);
     
-    revalidatePath('/search-items'); // Revalidate search page to show new item
-    revalidatePath('/'); // Revalidate home page if it shows recent items
-    revalidatePath(`/items/${newItem.id}`); // Revalidate the specific new item's page
+    revalidatePath('/search-items'); 
+    revalidatePath('/'); 
+    revalidatePath(`/items/${newItem.id}`); 
     
     return { success: true, message: 'Item posted successfully!', item: newItem };
   } catch (error) {
@@ -49,7 +52,6 @@ export async function submitContactFormAction(data: ContactFormData) {
   try {
     const validatedData = ContactFormSchema.parse(data);
 
-    // In a real app, you would send an email or notification here
     console.log('Contact Form Submitted:');
     console.log('Item ID:', validatedData.itemId);
     console.log('Claimant:', validatedData.userName, `(${validatedData.userEmail})`);
