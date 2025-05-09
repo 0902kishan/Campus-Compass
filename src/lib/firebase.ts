@@ -8,12 +8,16 @@ import { getStorage } from 'firebase/storage';
 
 const storageBucketEnv = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
-if (!storageBucketEnv) {
-  console.warn(
-    "Firebase Initialization Warning: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is not defined in your environment variables. " +
-    "Firebase Storage operations (like image uploads) will likely fail. " +
-    "Please ensure it is set in your .env.local file (e.g., NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com)."
+if (!storageBucketEnv || storageBucketEnv.trim() === '') {
+  console.error( // Changed to error for more visibility
+    "CRITICAL Firebase Initialization Error: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is missing or empty in your environment variables. " +
+    "Firebase Storage operations (like image uploads) will fail. " +
+    "Please ensure it is correctly set in your .env.local file (e.g., NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com) and restart your application."
   );
+  // Note: If NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is not defined or empty,
+  // subsequent Firebase operations relying on it will fail.
+  // For a hard stop, you could throw an error here:
+  // throw new Error("CRITICAL: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is not configured.");
 }
 
 const firebaseConfig: FirebaseOptions = {
@@ -34,7 +38,8 @@ if (!getApps().length) {
 }
 
 const db = getFirestore(app);
-const storage = getStorage(app);
+// The getStorage() call will fail if storageBucket is not correctly configured in firebaseConfig.
+const storage = getStorage(app); 
 
 export { app, db, storage };
 
