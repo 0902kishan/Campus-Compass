@@ -48,9 +48,10 @@ export function ItemForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null); // For preview
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [imagePathInStorage, setImagePathInStorage] = useState<string | null>(null);
+  const [storageUnavailableError, setStorageUnavailableError] = useState<string | null>(null);
 
 
   const form = useForm<z.infer<typeof ItemFormSchema>>({
@@ -59,22 +60,53 @@ export function ItemForm() {
       name: '',
       description: '',
       category: undefined,
-      imageUrl: '', // This is the value that will be submitted with the form
+      imageUrl: '',
       locationFound: '',
       contactEmailToClaim: '',
     },
   });
 
   useEffect(() => {
+    if (!storage) {
+      const errorMessage = 'Image upload functionality is unavailable. Firebase Storage may not be configured correctly (e.g., missing NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET in .env.local).';
+      setStorageUnavailableError(errorMessage);
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: errorMessage,
+        duration: 300000, // Long duration for visibility
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    // Component unmount or dependency change cleanup for uploaded image if form not submitted
     return () => {
-      if (imagePathInStorage && !form.formState.isSubmitSuccessful) {
+      if (storage && imagePathInStorage && !form.formState.isSubmitSuccessful) {
         const imageRef = ref(storage, imagePathInStorage);
-        deleteObject(imageRef).catch(error => console.warn("Cleanup failed for image:", imagePathInStorage, error));
+        deleteObject(imageRef)
+          .catch(error => console.warn("Cleanup failed for image:", imagePathInStorage, error));
+      } else if (!storage && imagePathInStorage) {
+        // If storage became unavailable after upload started but before submission, log this.
+        console.warn("Storage not available, cannot perform automatic cleanup for image:", imagePathInStorage);
       }
     };
   }, [imagePathInStorage, form.formState.isSubmitSuccessful]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (storageUnavailableError) {
+      toast({ variant: 'destructive', title: 'Upload Disabled', description: storageUnavailableError });
+      event.target.value = ''; // Clear the input
+      return;
+    }
+    if (!storage) {
+      const errorMsg = 'Image upload service is not configured.';
+      setUploadError(errorMsg);
+      toast({ variant: 'destructive', title: 'Upload Failed', description: errorMsg });
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (file) {
       if (!['image/jpeg', 'image/png'].includes(file.type)) {
@@ -82,6 +114,7 @@ export function ItemForm() {
         setImageFile(null);
         setUploadedImageUrl(null);
         form.setValue('imageUrl', '');
+        event.target.value = ''; // Clear the input
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -89,6 +122,7 @@ export function ItemForm() {
         setImageFile(null);
         setUploadedImageUrl(null);
         form.setValue('imageUrl', '');
+        event.target.value = ''; // Clear the input
         return;
       }
       
@@ -100,16 +134,25 @@ export function ItemForm() {
 
       setImageFile(file);
       setUploadedImageUrl(null); 
-      form.setValue('imageUrl', ''); // Clear form's imageUrl in preparation for new upload
+      form.setValue('imageUrl', '');
       setUploadError(null);
       handleImageUpload(file);
     }
   };
 
   const handleImageUpload = (file: File) => {
+    if (!storage) { // Double check, though UI should prevent this
+      setUploadError('Image upload service is not available. Cannot upload file.');
+      setIsUploadingImage(false);
+      setImageFile(null);
+      setUploadedImageUrl(null);
+      form.setValue('imageUrl', '');
+      return;
+    }
+
     setIsUploadingImage(true);
     setUploadProgress(0);
-    setUploadError(null); // Clear previous errors
+    setUploadError(null);
     
     const filePath = `items/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, filePath);
@@ -121,37 +164,34 @@ export function ItemForm() {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadProgress(progress);
       },
-      (error) => { // Error during upload task itself
+      (error) => {
         console.error("Upload failed:", error);
         setUploadError(`Upload failed: ${error.message}`);
         setIsUploadingImage(false);
         setUploadProgress(null);
         setImageFile(null);
-        form.setValue('imageUrl', '', { shouldValidate: true }); // Ensure form imageUrl is empty
-        setUploadedImageUrl(null); // Clear preview
+        form.setValue('imageUrl', '', { shouldValidate: true });
+        setUploadedImageUrl(null);
         setImagePathInStorage(null);
       },
-      async () => { // Upload task completed
+      async () => {
         try {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploadedImageUrl(downloadURL); // For preview
-          form.setValue('imageUrl', downloadURL, { shouldValidate: true }); // Set form's imageUrl
+          setUploadedImageUrl(downloadURL);
+          form.setValue('imageUrl', downloadURL, { shouldValidate: true });
           setImagePathInStorage(filePath); 
-          setUploadError(null); // Clear any previous errors
-          setUploadProgress(100); // Visually indicate completion
-        } catch (error) { // Error getting download URL
+          setUploadError(null);
+          setUploadProgress(100);
+        } catch (error) {
             console.error("Failed to get download URL:", error);
             setUploadError('Failed to get image URL after upload.');
-            form.setValue('imageUrl', '', { shouldValidate: true }); // Ensure form imageUrl is empty
-            setUploadedImageUrl(null); // Clear preview
-            setImagePathInStorage(filePath); // Keep path for potential cleanup as upload did happen
-                                           // but we might want to delete it if form submission fails due to no URL
+            form.setValue('imageUrl', '', { shouldValidate: true });
+            setUploadedImageUrl(null);
+            // Keep imagePathInStorage for potential manual cleanup if needed, 
+            // or decide to delete it if URL retrieval is critical for form flow.
+            // For now, we keep it, and submission might fail or proceed without URL.
         } finally {
             setIsUploadingImage(false);
-            // Only keep progress at 100 if successful, otherwise clear it or show error
-            if (uploadError) {
-                setUploadProgress(null);
-            }
         }
       }
     );
@@ -162,12 +202,34 @@ export function ItemForm() {
       toast({
         title: "Please wait",
         description: "Image is still uploading.",
-        variant: "destructive",
+        variant: "default", // Changed from destructive as it's informational
       });
       return;
     }
 
-    // Ensure imageUrl in values is the one from Firebase, or empty string if upload failed/not attempted
+    if (storageUnavailableError && values.imageUrl) {
+         toast({
+            title: "Submission Error",
+            description: `${storageUnavailableError} Cannot submit with an image.`,
+            variant: "destructive",
+        });
+        setIsSubmittingForm(false); // ensure form is not stuck in submitting state
+        return;
+    }
+    
+    // If an image was selected but its URL wasn't obtained (e.g., upload failed silently or getDownloadURL failed)
+    // and storage is supposed to be available.
+    if (imageFile && !form.getValues('imageUrl') && !uploadError && !storageUnavailableError) {
+        toast({
+            title: "Image Issue",
+            description: "Image was selected but its URL is missing. Please try re-uploading or remove the image.",
+            variant: "destructive",
+        });
+        setIsSubmittingForm(false);
+        return;
+    }
+
+
     const submissionValues = { ...values, imageUrl: form.getValues('imageUrl') || '' };
 
     setIsSubmittingForm(true);
@@ -203,7 +265,7 @@ export function ItemForm() {
     }
   }
 
-  const isSubmitDisabled = isUploadingImage || isSubmittingForm;
+  const finalIsSubmitDisabled = isUploadingImage || isSubmittingForm || !!storageUnavailableError;
 
   return (
     <Form {...form}>
@@ -276,24 +338,31 @@ export function ItemForm() {
               accept="image/jpeg, image/png"
               onChange={handleImageChange}
               className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              disabled={isUploadingImage || isSubmittingForm}
+              disabled={isUploadingImage || isSubmittingForm || !!storageUnavailableError}
             />
           </FormControl>
           <FormDescription>
             Upload a JPG or PNG image (max 5MB).
           </FormDescription>
-          {isUploadingImage && uploadProgress !== null && uploadProgress < 100 && (
+
+          {storageUnavailableError && !uploadError && (
+            <p className="mt-2 text-sm text-destructive flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" /> {storageUnavailableError}
+            </p>
+          )}
+
+          {isUploadingImage && uploadProgress !== null && uploadProgress < 100 && !storageUnavailableError && (
             <div className="mt-2 space-y-1">
               <Progress value={uploadProgress} className="w-full h-2" />
               <p className="text-sm text-muted-foreground">{`Uploading: ${Math.round(uploadProgress)}%`}</p>
             </div>
           )}
-          {uploadError && (
+          {uploadError && !storageUnavailableError && ( // Only show specific upload error if general storage isn't the issue shown
             <p className="mt-2 text-sm text-destructive flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" /> {uploadError}
             </p>
           )}
-          {uploadedImageUrl && !isUploadingImage && !uploadError && uploadProgress === 100 && (
+          {uploadedImageUrl && !isUploadingImage && !uploadError && uploadProgress === 100 && !storageUnavailableError && (
             <div className="mt-4">
               <p className="text-sm text-green-600 flex items-center mb-2">
                 <CheckCircle className="w-4 h-4 mr-1" /> Image uploaded successfully.
@@ -303,7 +372,6 @@ export function ItemForm() {
               </div>
             </div>
           )}
-          {/* Hidden field to store imageUrl for react-hook-form, value set by upload logic */}
           <FormField
             control={form.control}
             name="imageUrl"
@@ -342,7 +410,7 @@ export function ItemForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitDisabled}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={finalIsSubmitDisabled}>
           {isSubmittingForm ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -361,4 +429,3 @@ export function ItemForm() {
     </Form>
   );
 }
-
