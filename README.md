@@ -1,35 +1,29 @@
-
 # Campus Compass - Lost & Found Platform
 
-Campus Compass is a full-stack web application designed to help students reunite with lost belongings on campus.
+Campus Compass is a professional lost-and-found platform built with Next.js 15 and Firebase.
 
 ## 🚀 How to Run the Project Locally
 
-### 1. Prerequisites
-- **Node.js** (v18 or higher)
-- A **Firebase Project** (Create one for free at [console.firebase.google.com](https://console.firebase.google.com))
+### 1. Export from Firebase Studio
+To run this in **Antigravity** or any other IDE, you first need the project files:
+1. In Firebase Studio, click the **Export/Download** button in the top toolbar.
+2. This will generate a file named `project.zip`.
+3. Move `project.zip` to your local environment (e.g., `C:\Users\kk288\Desktop\slides\project.zip`).
+4. Extract the ZIP file.
 
-### 2. Setup Firebase
-1. In the Firebase Console, click **Add App** and select **Web**.
-2. Register your app (e.g., "CampusCompass-Local").
-3. You will see a `firebaseConfig` object. Keep this open.
-4. Enable **Firestore Database** in the "Build" menu.
-5. Enable **Storage** in the "Build" menu.
-
-### 3. Environment Variables
-Create a `.env.local` file in the root directory of your project and paste your keys:
+### 2. Configure Firebase
+Create a `.env.local` file in the root directory and add your keys from the [Firebase Console](https://console.firebase.google.com/):
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-### 4. Install & Run
-Open your terminal in the project folder and run:
+### 3. Install & Run
 ```bash
 npm install
 npm run dev
@@ -38,25 +32,9 @@ The app will be live at `http://localhost:9002`.
 
 ---
 
-## 📂 How to Put This on GitHub
-
-1. **Create a new repository** on GitHub.
-2. **Initialize git** locally:
-```bash
-git init
-git add .
-git commit -m "Initial commit: Campus Compass Project"
-git remote add origin https://github.com/YOUR_USERNAME/campus-compass.git
-git branch -M main
-git push -u origin main
-```
-*Note: The `.env.local` file is hidden by `.gitignore` by default. Do not share your API keys publicly.*
-
----
-
 ## 🚀 Interview Talking Points
 
-- **The Problem**: Campus lost-and-found is usually fragmented (Facebook groups, physical offices).
-- **The Solution**: A centralized platform with real-time updates and visual proof.
-- **Tech Stack**: Next.js 15 (App Router), TypeScript, Tailwind CSS, ShadCN UI, and Firebase (Firestore + Storage).
-- **Key Feature**: Optimistic UI updates. When a user uploads a photo, it is handled asynchronously by Firebase Storage while the form maintains state, ensuring a smooth user experience.
+- **Modern Stack**: Next.js 15 App Router for performance and SEO.
+- **Robust Forms**: Using `react-hook-form` and `Zod` for strict client-side validation.
+- **Real-time Storage**: Visual proof of found items using Firebase Storage with optimistic progress bars.
+- **Unified Firebase Logic**: A centralized provider for Auth, Firestore, and Storage to ensure consistent state across the app.
