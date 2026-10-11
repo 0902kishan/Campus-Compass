@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCH3augQlsSaiu-n76GO1sHDRGfCYjKfm4",
+  authDomain: "campus-compass-y065w.firebaseapp.com",
+  projectId: "campus-compass-y065w",
+  storageBucket: "campus-compass-y065w.firebasestorage.app",
+  messagingSenderId: "42024244906",
+  appId: "1:42024244906:web:5355e849d846057eb3a2d3",
 };
