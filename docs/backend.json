@@ -1,0 +1,69 @@
+
+{
+  "entities": {
+    "Item": {
+      "title": "Lost/Found Item",
+      "description": "Represents an item reported as found on campus.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Short name of the item"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the item"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Electronics",
+            "Clothing",
+            "Books",
+            "Keys",
+            "Wallet",
+            "Other"
+          ]
+        },
+        "imageUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the image in storage"
+        },
+        "locationFound": {
+          "type": "string",
+          "description": "Where the item was found"
+        },
+        "dateFound": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was found"
+        },
+        "contactEmailToClaim": {
+          "type": "string",
+          "format": "email",
+          "description": "Email to contact for claiming"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "category",
+        "locationFound",
+        "dateFound",
+        "contactEmailToClaim"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "/items/{itemId}": {
+      "schema": "Item",
+      "description": "Collection of all reported items."
+    }
+  }
+}

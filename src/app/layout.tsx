@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -28,12 +30,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
-        <Navbar />
-        <main className="flex-grow container py-8">
-          {children}
-        </main>
-        <Footer />
-        <Toaster />
+        <FirebaseClientProvider>
+          <Navbar />
+          <main className="flex-grow container py-8">
+            {children}
+          </main>
+          <Footer />
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );
