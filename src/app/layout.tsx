@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AuthProvider } from '@/context/AuthContext';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,12 +32,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <FirebaseClientProvider>
-          <Navbar />
-          <main className="flex-grow container py-8">
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
+          <AuthProvider>
+            <Navbar />
+            <main className="flex-grow container py-8">
+              {children}
+            </main>
+            <Footer />
+            <Toaster />
+          </AuthProvider>
         </FirebaseClientProvider>
       </body>
     </html>

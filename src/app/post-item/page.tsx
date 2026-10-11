@@ -1,25 +1,35 @@
 import { ItemForm } from '@/components/ItemForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCurrentUser } from '@/lib/auth-actions';
+import { redirect } from 'next/navigation';
 
-export default function PostItemPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function PostItemPage() {
+  const session = await getCurrentUser();
+
+  if (!session) {
+    redirect('/login?redirect=/post-item');
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">Found Something?</h1>
-        <p className="mt-4 text-lg leading-8 text-muted-foreground">
-          Help reunite lost items with their owners by posting the details below.
+    <div className="space-y-8 pb-12">
+      <div className="text-center max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">Announce a Found Item</h1>
+        <p className="mt-3 text-base text-muted-foreground leading-relaxed">
+          Posting as <strong className="text-foreground">{session.name}</strong> ({session.email}). Help reunite lost items with their owners by sharing details below.
         </p>
       </div>
-      <Card className="max-w-3xl mx-auto shadow-xl">
+      <Card className="max-w-3xl mx-auto shadow-xl border-border/70">
         <CardHeader>
-          <CardTitle>Post a Found Item</CardTitle>
+          <CardTitle>Post Details</CardTitle>
           <CardDescription>
             Fill out the form below with as much detail as possible.
-            Your contact email will be used by individuals who believe this item is theirs.
+            Your registered campus email ({session.email}) will receive claim inquiries when students reach out.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ItemForm />
+          <ItemForm defaultEmail={session.email} />
         </CardContent>
       </Card>
     </div>

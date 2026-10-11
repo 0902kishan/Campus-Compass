@@ -17,12 +17,16 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   } | null>(null);
 
   useEffect(() => {
-    const { firebaseApp, firestore, auth, storage } = initializeFirebase();
-    setInstances({ firebaseApp, firestore, auth, storage });
+    try {
+      const { firebaseApp, firestore, auth, storage } = initializeFirebase();
+      setInstances({ firebaseApp, firestore, auth, storage });
+    } catch (err) {
+      console.warn("Firebase optional provider initialization:", err);
+    }
   }, []);
 
   if (!instances) {
-    return null;
+    return <>{children}</>;
   }
 
   return (

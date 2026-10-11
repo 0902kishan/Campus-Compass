@@ -7,6 +7,10 @@ import { getItems } from "@/lib/mock-data";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { LayoutDashboard, Users } from "lucide-react";
+
+export const dynamic = 'force-dynamic';
+
 async function RecentItems() {
   const recentItems = (await getItems()).slice(0, 3);
 
@@ -40,27 +44,31 @@ function RecentItemsSkeleton() {
   );
 }
 
-
 export default function HomePage() {
   return (
-    <div className="space-y-16">
+    <div className="space-y-16 pb-12">
       <section className="text-center py-12 md:py-20">
-        <PackageSearch className="mx-auto h-16 w-16 text-primary mb-6" />
-        <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
+        <PackageSearch className="mx-auto h-16 w-16 text-primary mb-6 animate-bounce" />
+        <h1 className="text-4xl font-extrabold tracking-tight text-primary sm:text-5xl md:text-6xl">
           Welcome to Campus Compass
         </h1>
         <p className="mt-6 text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
-          Your central hub for finding lost items and reporting found ones on campus. Let's help each other keep our belongings safe!
+          Your central hub for finding lost items, reporting found ones, and safely connecting claimants with finders on campus.
         </p>
-        <div className="mt-10 flex items-center justify-center gap-x-6">
-          <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md">
             <Link href="/post-item">
               <Edit3 className="mr-2 h-5 w-5" /> Post a Found Item
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline" size="lg" className="font-semibold">
             <Link href="/search-items">
               <Search className="mr-2 h-5 w-5" /> Search for Lost Item
+            </Link>
+          </Button>
+          <Button asChild variant="secondary" size="lg" className="font-semibold">
+            <Link href="/dashboard">
+              <LayoutDashboard className="mr-2 h-5 w-5 text-primary" /> Open Dashboard
             </Link>
           </Button>
         </div>
@@ -69,55 +77,69 @@ export default function HomePage() {
       <section>
         <h2 className="text-3xl font-bold text-center mb-2 text-primary">How It Works</h2>
         <p className="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
-          A simple process to connect lost items with their rightful owners.
+          A seamless 3-step process to connect lost items with their rightful owners.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="text-center shadow-lg">
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow flex flex-col justify-between">
             <CardHeader>
               <Edit3 className="mx-auto h-10 w-10 text-accent mb-3" />
               <CardTitle>1. Post Found Item</CardTitle>
             </CardHeader>
-            <CardContent>
-              <CardDescription>
-                If you've found an item, describe it, add an image (optional), and post it. Your details help owners identify their belongings.
+            <CardContent className="space-y-4">
+              <CardDescription className="text-sm leading-relaxed">
+                Found an item on campus? Describe it, optionally add a photo, and announce it so the owner can recognize it.
               </CardDescription>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/post-item">Announce an Item</Link>
+              </Button>
             </CardContent>
           </Card>
-          <Card className="text-center shadow-lg">
+
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow flex flex-col justify-between">
             <CardHeader>
               <Search className="mx-auto h-10 w-10 text-accent mb-3" />
               <CardTitle>2. Search & Browse</CardTitle>
             </CardHeader>
-            <CardContent>
-              <CardDescription>
-                Lost something? Browse through the listed items or use the search to find it by keywords or category.
+            <CardContent className="space-y-4">
+              <CardDescription className="text-sm leading-relaxed">
+                Lost something? Search by keyword or filter by category and availability status to spot your item.
               </CardDescription>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/search-items">Search Directory</Link>
+              </Button>
             </CardContent>
           </Card>
-          <Card className="text-center shadow-lg">
+
+          <Card className="text-center shadow-lg hover:shadow-xl transition-shadow flex flex-col justify-between border-primary/30">
             <CardHeader>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-10 w-10 text-accent mb-3 lucide lucide-users-round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="4"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-10 0c-2 1.5-4 4.63-4 8"/></svg>
+              <Users className="mx-auto h-10 w-10 text-accent mb-3" />
               <CardTitle>3. Connect & Claim</CardTitle>
             </CardHeader>
-            <CardContent>
-              <CardDescription>
-                Found your item? Use the secure contact form to message the poster and arrange for its return.
+            <CardContent className="space-y-4">
+              <CardDescription className="text-sm leading-relaxed">
+                Submit an ownership claim with identifying proof. The poster reviews it and connects directly via email to return it.
               </CardDescription>
+              <Button asChild variant="default" size="sm" className="w-full font-semibold">
+                <Link href="/dashboard?tab=claims">Connect Hub & Claims</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
       </section>
 
       <section>
-        <h2 className="text-3xl font-bold text-center mb-10 text-primary">Recently Found Items</h2>
-        <Suspense fallback={<RecentItemsSkeleton />}>
-          <RecentItems />
-        </Suspense>
-        <div className="text-center mt-10">
-          <Button asChild variant="default">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-primary">Recently Found Items</h2>
+            <p className="text-sm text-muted-foreground">Latest reports submitted to Campus Compass</p>
+          </div>
+          <Button asChild variant="outline" size="sm">
             <Link href="/search-items">View All Items</Link>
           </Button>
         </div>
+        <Suspense fallback={<RecentItemsSkeleton />}>
+          <RecentItems />
+        </Suspense>
       </section>
     </div>
   );

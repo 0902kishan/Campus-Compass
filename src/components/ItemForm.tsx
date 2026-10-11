@@ -17,15 +17,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
 import { postFoundItemAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { Loader2, UploadCloud, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
-import { useStorage } from '@/firebase';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const itemCategories: ItemCategory[] = ["Electronics", "Clothing", "Books", "Keys", "Wallet", "Other"];
 
@@ -33,23 +30,22 @@ const ItemFormSchema = z.object({
   name: z.string().min(3, { message: "Item name must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   category: z.enum(itemCategories as [string, ...string[]], { message: "Please select a category." }),
-  imageUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')),
+  imageUrl: z.string().optional().or(z.literal('')),
   locationFound: z.string().min(3, { message: "Location found must be at least 3 characters." }),
   contactEmailToClaim: z.string().email({ message: "Please enter a valid email address for contact." }),
 });
 
-export function ItemForm() {
+interface ItemFormProps {
+  defaultEmail?: string;
+}
+
+export function ItemForm({ defaultEmail = '' }: ItemFormProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const storage = useStorage();
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [imagePathInStorage, setImagePathInStorage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof ItemFormSchema>>({
     resolver: zodResolver(ItemFormSchema),
@@ -59,24 +55,17 @@ export function ItemForm() {
       category: undefined,
       imageUrl: '',
       locationFound: '',
-      contactEmailToClaim: '',
+      contactEmailToClaim: defaultEmail,
     },
   });
-
-  useEffect(() => {
-    return () => {
-      if (storage && imagePathInStorage && !form.formState.isSubmitSuccessful) {
-        const imageRef = ref(storage, imagePathInStorage);
-        deleteObject(imageRef).catch(e => console.warn("Cleanup failed:", e));
-      }
-    };
-  }, [imagePathInStorage, form.formState.isSubmitSuccessful, storage]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!['image/jpeg', 'image/png'].includes(file.type)) {
-        setUploadError('Invalid file type. Please upload a JPG or PNG.');
+      setUploadError(null);
+
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+        setUploadError('Invalid file type. Please upload a JPG, PNG, WebP, or GIF.');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -84,37 +73,23 @@ export function ItemForm() {
         return;
       }
       
-      setImageFile(file);
-      handleImageUpload(file);
+      // Convert image to base64 data URL for local preview and storage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImagePreviewUrl(dataUrl);
+        form.setValue('imageUrl', dataUrl, { shouldValidate: true });
+      };
+      reader.onerror = () => {
+        setUploadError('Failed to read the image file. Please try again.');
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleImageUpload = (file: File) => {
-    setIsUploadingImage(true);
-    setUploadProgress(0);
-    
-    const filePath = `items/${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, filePath);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        setUploadError(`Upload failed: ${error.message}`);
-        setIsUploadingImage(false);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        setUploadedImageUrl(downloadURL);
-        form.setValue('imageUrl', downloadURL, { shouldValidate: true });
-        setImagePathInStorage(filePath); 
-        setIsUploadingImage(false);
-      }
-    );
+  const handleRemoveImage = () => {
+    setImagePreviewUrl(null);
+    form.setValue('imageUrl', '', { shouldValidate: true });
   };
 
   async function onSubmit(values: z.infer<typeof ItemFormSchema>) {
@@ -124,8 +99,10 @@ export function ItemForm() {
 
     if (result.success && result.item) {
       toast({ title: "Success!", description: result.message });
+      router.refresh();
       router.push(`/items/${result.item.id}`); 
       form.reset();
+      setImagePreviewUrl(null);
     } else {
       toast({
         title: "Error",
@@ -188,16 +165,24 @@ export function ItemForm() {
           <FormControl>
             <Input 
               type="file" 
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               onChange={handleImageChange}
-              disabled={isUploadingImage || isSubmittingForm}
+              disabled={isSubmittingForm}
             />
           </FormControl>
-          {isUploadingImage && <Progress value={uploadProgress} className="mt-2" />}
           {uploadError && <p className="text-sm text-destructive mt-2">{uploadError}</p>}
-          {uploadedImageUrl && (
-            <div className="mt-4 relative w-full h-48 rounded-md overflow-hidden border">
-              <Image src={uploadedImageUrl} alt="Preview" fill className="object-cover" />
+          {imagePreviewUrl && (
+            <div className="mt-4 space-y-2">
+              <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                <Image src={imagePreviewUrl} alt="Preview" fill className="object-cover" unoptimized />
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-muted-foreground">Image ready</span>
+                <Button type="button" variant="ghost" size="sm" onClick={handleRemoveImage} className="ml-auto text-destructive hover:text-destructive">
+                  Remove
+                </Button>
+              </div>
             </div>
           )}
           <FormMessage />
@@ -225,9 +210,9 @@ export function ItemForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto" disabled={isUploadingImage || isSubmittingForm}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmittingForm}>
           {isSubmittingForm ? <Loader2 className="animate-spin mr-2" /> : null}
-          {isUploadingImage ? 'Uploading...' : 'Post Found Item'}
+          Post Found Item
         </Button>
       </form>
     </Form>

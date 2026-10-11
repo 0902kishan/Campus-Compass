@@ -21,6 +21,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
+import Link from 'next/link';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
+
 const ContactFormSchema = z.object({
   userName: z.string().min(2, { message: "Your name must be at least 2 characters." }),
   userEmail: z.string().email({ message: "Please enter your valid email address." }),
@@ -30,17 +33,27 @@ const ContactFormSchema = z.object({
 interface ContactItemOwnerFormProps {
   itemId: string;
   itemOwnerEmail: string;
+  itemName?: string;
+  defaultClaimantName?: string;
+  defaultClaimantEmail?: string;
 }
 
-export function ContactItemOwnerForm({ itemId, itemOwnerEmail }: ContactItemOwnerFormProps) {
+export function ContactItemOwnerForm({ 
+  itemId, 
+  itemOwnerEmail, 
+  itemName,
+  defaultClaimantName = '',
+  defaultClaimantEmail = ''
+}: ContactItemOwnerFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedClaimId, setSubmittedClaimId] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof ContactFormSchema>>({
     resolver: zodResolver(ContactFormSchema),
     defaultValues: {
-      userName: '',
-      userEmail: '',
+      userName: defaultClaimantName,
+      userEmail: defaultClaimantEmail,
       message: '',
     },
   });
@@ -58,9 +71,10 @@ export function ContactItemOwnerForm({ itemId, itemOwnerEmail }: ContactItemOwne
 
     if (result.success) {
       toast({
-        title: "Message Sent!",
+        title: "Claim Submitted!",
         description: result.message,
       });
+      setSubmittedClaimId(result.claim?.id || 'pending');
       form.reset();
     } else {
       toast({
@@ -70,13 +84,42 @@ export function ContactItemOwnerForm({ itemId, itemOwnerEmail }: ContactItemOwne
       });
       if (result.errors) {
          Object.entries(result.errors).forEach(([field, messages]) => {
-          form.setError(field as keyof z.infer<typeof ContactFormSchema>, { // Cast field to the correct type
+          form.setError(field as keyof z.infer<typeof ContactFormSchema>, {
             type: 'manual',
             message: (messages as string[]).join(', '),
           });
         });
       }
     }
+  }
+
+  if (submittedClaimId) {
+    return (
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+          <CheckCircle2 className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-foreground">Claim Successfully Registered!</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+            Your ownership claim for <strong>{itemName || 'this item'}</strong> has been sent to the finder ({itemOwnerEmail}).
+          </p>
+        </div>
+        <div className="bg-background/80 rounded-lg p-3 inline-block border text-xs font-mono text-muted-foreground">
+          Claim Tracking ID: <span className="font-bold text-foreground">{submittedClaimId}</span>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          <Button asChild className="bg-primary hover:bg-primary/90">
+            <Link href="/dashboard">
+              Track in Dashboard <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => setSubmittedClaimId(null)}>
+            Submit Another Note
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

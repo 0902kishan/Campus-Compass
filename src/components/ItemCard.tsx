@@ -38,41 +38,81 @@ function getImageHint(category: Item['category']): string {
 
 export function ItemCard({ item }: ItemCardProps) {
   const displayImageUrl = item.imageUrl || getDefaultImageUrl(item.category);
+  const status = item.status || 'available';
+
+  const statusConfig = {
+    available: {
+      label: 'Available',
+      badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+      dotClass: 'bg-emerald-500',
+    },
+    claimed: {
+      label: 'Claim in Progress',
+      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+      dotClass: 'bg-amber-500',
+    },
+    returned: {
+      label: 'Reunited / Collected',
+      badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
+      dotClass: 'bg-blue-500',
+    },
+  }[status] || {
+    label: 'Available',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+    dotClass: 'bg-emerald-500',
+  };
 
   return (
-    <Card className="flex flex-col h-full shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader>
-        <div className="relative w-full h-48 mb-4 rounded-t-lg overflow-hidden">
+    <Card className="flex flex-col h-full shadow-md hover:shadow-xl transition-all duration-300 border-border/60 hover:border-primary/40 group overflow-hidden">
+      <CardHeader className="p-0">
+        <div className="relative w-full h-48 overflow-hidden bg-muted">
           <Image
             src={displayImageUrl}
             alt={item.name}
             fill
-            style={{objectFit:"cover"}}
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
             data-ai-hint={getImageHint(item.category)}
+            unoptimized={displayImageUrl.startsWith('data:')}
           />
+          <div className="absolute top-3 right-3">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm backdrop-blur-md bg-background/85 border ${statusConfig.badgeClass}`}>
+              <span className={`w-2 h-2 rounded-full ${statusConfig.dotClass}`} />
+              {statusConfig.label}
+            </span>
+          </div>
         </div>
-        <CardTitle className="text-xl">{item.name}</CardTitle>
-        <CardDescription className="flex items-center text-sm text-muted-foreground">
-          <Tag className="w-4 h-4 mr-1" />
-          <Badge variant="secondary">{item.category}</Badge>
-        </CardDescription>
+        <div className="p-5 pb-2">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <CardTitle className="text-xl font-bold tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
+              {item.name}
+            </CardTitle>
+          </div>
+          <CardDescription className="flex items-center text-xs text-muted-foreground">
+            <Tag className="w-3.5 h-3.5 mr-1 text-primary" />
+            <Badge variant="secondary" className="font-medium text-xs">{item.category}</Badge>
+          </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-2">{item.description}</p>
-        <div className="space-y-1 text-sm">
+      <CardContent className="px-5 flex-grow">
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
+          {item.description}
+        </p>
+        <div className="space-y-1.5 text-xs text-muted-foreground pt-2 border-t border-border/50">
           <p className="flex items-center">
-            <MapPin className="w-4 h-4 mr-2 text-primary" />
-            Found at: {item.locationFound}
+            <MapPin className="w-3.5 h-3.5 mr-2 text-primary shrink-0" />
+            <span className="truncate">Found at: <strong className="text-foreground font-medium">{item.locationFound}</strong></span>
           </p>
           <p className="flex items-center">
-            <CalendarDays className="w-4 h-4 mr-2 text-primary" />
-            Found on: {format(new Date(item.dateFound), 'PPP')}
+            <CalendarDays className="w-3.5 h-3.5 mr-2 text-primary shrink-0" />
+            <span>Found on: <strong className="text-foreground font-medium">{format(new Date(item.dateFound), 'MMM d, yyyy')}</strong></span>
           </p>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button asChild className="w-full bg-primary hover:bg-primary/90">
-          <Link href={`/items/${item.id}`}>View Details</Link>
+      <CardFooter className="p-5 pt-2">
+        <Button asChild className="w-full font-medium shadow-sm transition-all" variant={status === 'returned' ? 'secondary' : 'default'}>
+          <Link href={`/items/${item.id}`}>
+            {status === 'available' ? 'View & Claim Item' : status === 'claimed' ? 'View Details (Claimed)' : 'View Details (Reunited)'}
+          </Link>
         </Button>
       </CardFooter>
     </Card>

@@ -35,6 +35,10 @@ yarn-error.log*
 *.sln
 *.sw?
 
-# Firebase
+# Database files
 lost-found-items.db.json
+claims.db.json
+users.db.json
 firebase-debug.log
+tsconfig.tsbuildinfo
+.modified
